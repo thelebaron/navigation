@@ -101,6 +101,12 @@ namespace NavJob.Systems
         public delegate void FailedQueryDelegate(int id, PathfindingFailedReason reason);
         private SuccessQueryDelegate _pathResolvedCallbacks;
         private FailedQueryDelegate _pathFailedCallbacks;
+        
+        
+        //Dictionary<TKey, TValue> -----> NativeHashMap
+        //Dictionary<TKey, List<TValue>> -----> NativeMultiHashMap
+
+        private          NativeMultiHashMap<int, float3>      cachedPaths   = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
         private readonly ConcurrentDictionary<int, Vector3[]> _cachedPaths = new ConcurrentDictionary<int, Vector3[]>();
 
         private struct PathQueryData
