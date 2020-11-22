@@ -54,26 +54,14 @@ namespace NavJob.Systems
         /// <summary>
         /// Pending nav mesh count
         /// </summary>
-        public int PendingCount
-        {
-            get
-            {
-                return _queryQueue.Count;
-            }
-        }
+        public int PendingCount => _queryQueue.Count;
 
         /// <summary>
         /// Cached path count
         /// </summary>
-        public int CachedCount
-        {
-            get
-            {
-                return _cachedPaths.Count;
-            }
-        }
+        public int CachedCount => _cachedPaths.Count;//return cachedPaths.Count();
 
-        private NavMeshWorld _world;
+        private NavMeshWorld navMeshWorld;
         private NavMeshQuery _locationQuery;
         private ConcurrentQueue<PathQueryData> _queryQueue;
         private NativeList<PathQueryData> _progressQueue;
@@ -106,7 +94,9 @@ namespace NavJob.Systems
         //Dictionary<TKey, TValue> -----> NativeHashMap
         //Dictionary<TKey, List<TValue>> -----> NativeMultiHashMap
 
-        private          NativeMultiHashMap<int, float3>      cachedPaths   = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
+        //private          NativeMultiHashMap<int, float3>      cachedPaths   = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
+
+        private NavAgentSystem navAgentSystem;
         private readonly ConcurrentDictionary<int, Vector3[]> _cachedPaths = new ConcurrentDictionary<int, Vector3[]>();
 
         private struct PathQueryData
@@ -148,9 +138,20 @@ namespace NavJob.Systems
             var key = GetKey((int)from.x, (int)from.z, (int)to.x, (int)to.z);
             if (UseCache)
             {
+                Debug.Log("using cache");
+                /*if (cachedPaths.TryGetFirstValue(key, out var value, out var iterator))
+                {
+                    if (cachedPaths.TryGetNextValue(out float3 item, ref iterator))
+                    {
+                        navAgentSystem.OnPathSuccess(id, waypoints);
+                    }
+                }*/
+
+
                 if (_cachedPaths.TryGetValue(key, out Vector3[] waypoints))
                 {
                     _pathResolvedCallbacks?.Invoke(id, waypoints);
+
                     return;
                 }
             }
@@ -164,6 +165,7 @@ namespace NavJob.Systems
         public void PurgeCache()
         {
             Version++;
+            //cachedPaths.Clear();
             _cachedPaths.Clear();
         }
 
@@ -299,7 +301,7 @@ namespace NavJob.Systems
                     }
                     else if (_availableSlots.TryDequeue(out int index))
                     {
-                        var query = new NavMeshQuery(_world, Allocator.Persistent, MaxPathSize);
+                        var query = new NavMeshQuery(navMeshWorld, Allocator.Persistent, MaxPathSize);
                         var from = query.MapLocation(pending.from, Vector3.one * 10, 0);
                         var to = query.MapLocation(pending.to, Vector3.one * 10, 0);
                         if (!query.IsValid(from) || !query.IsValid(to))
@@ -396,17 +398,18 @@ namespace NavJob.Systems
 
         protected override void OnCreate()
         {
-            _world = NavMeshWorld.GetDefaultWorld();
-            _locationQuery = new NavMeshQuery(_world, Allocator.Persistent);
+            navAgentSystem  = World.GetOrCreateSystem<NavAgentSystem>();
+            navMeshWorld    = NavMeshWorld.GetDefaultWorld();
+            _locationQuery  = new NavMeshQuery(navMeshWorld, Allocator.Persistent);
             _availableSlots = new ConcurrentQueue<int>();
-            _progressQueue = new NativeList<PathQueryData>(MaxQueries, Allocator.Persistent);
-            _handles = new List<JobHandle>(MaxQueries);
-            _takenSlots = new List<int>(MaxQueries);
-            _statuses = new List<NativeArray<int>>(MaxQueries);
-            _results = new List<NativeArray<NavMeshLocation>>(MaxQueries);
-            _jobs = new Dictionary<int, UpdateQueryStatusJob>(MaxQueries);
-            _queries = new NavMeshQuery[MaxQueries];
-            _queryDatas = new PathQueryData[MaxQueries];
+            _progressQueue  = new NativeList<PathQueryData>(MaxQueries, Allocator.Persistent);
+            _handles        = new List<JobHandle>(MaxQueries);
+            _takenSlots     = new List<int>(MaxQueries);
+            _statuses       = new List<NativeArray<int>>(MaxQueries);
+            _results        = new List<NativeArray<NavMeshLocation>>(MaxQueries);
+            _jobs           = new Dictionary<int, UpdateQueryStatusJob>(MaxQueries);
+            _queries        = new NavMeshQuery[MaxQueries];
+            _queryDatas     = new PathQueryData[MaxQueries];
             for (int i = 0; i < MaxQueries; i++)
             {
                 _handles.Add(new JobHandle());
@@ -421,6 +424,7 @@ namespace NavJob.Systems
         {
             _progressQueue.Dispose();
             _locationQuery.Dispose();
+            //cachedPaths.Dispose();
             for (int i = 0; i < _takenSlots.Count; i++)
             {
                 _queries[_takenSlots[i]].Dispose();

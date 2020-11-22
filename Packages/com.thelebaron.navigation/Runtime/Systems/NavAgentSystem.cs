@@ -258,7 +258,8 @@ namespace NavJob.Systems
             command.SetComponent(entity, agent);
         }
 
-        private void OnPathSuccess(int index, Vector3[] waypoints)
+        // make public for refactoring
+        public void OnPathSuccess(int index, Vector3[] waypoints)
         {
             if (_pathFindingData.TryGetValue(index, out AgentData entry))
             {
