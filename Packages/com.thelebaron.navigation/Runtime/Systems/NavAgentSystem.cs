@@ -20,7 +20,6 @@ namespace NavJob.Systems
     class PathSuccessBarrier : EntityCommandBufferSystem { }
     class PathErrorBarrier : EntityCommandBufferSystem { }
 
-    //[DisableAutoCreation]
     public class NavAgentSystem : SystemBase
     {
 
@@ -255,8 +254,8 @@ namespace NavJob.Systems
             agent.nextWaypointIndex = 1;
             agent.totalWaypoints = newWaypoints.Length;
             agent.currentWaypoint = newWaypoints[0];
-            agent.remainingDistance = Vector3.Distance(agent.position, agent.currentWaypoint);
-            command.SetComponent<NavAgent>(entity, agent);
+            agent.remainingDistance = math.distance(agent.position, agent.currentWaypoint);
+            command.SetComponent(entity, agent);
         }
 
         private void OnPathSuccess(int index, Vector3[] waypoints)

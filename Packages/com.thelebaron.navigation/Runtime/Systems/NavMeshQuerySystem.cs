@@ -2,9 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Experimental.AI;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -20,7 +18,7 @@ namespace NavJob.Systems
     }
 
     //[DisableAutoCreation]
-    public class NavMeshQuerySystem : JobComponentSystem
+    public class NavMeshQuerySystem : SystemBase
     {
 
         /// <summary>
@@ -276,12 +274,12 @@ namespace NavJob.Systems
             }
         }
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
 
             if (_queryQueue.Count == 0 && _availableSlots.Count == MaxQueries)
             {
-                return inputDeps;
+                return;
             }
 
             int j = 0;
@@ -347,7 +345,7 @@ namespace NavJob.Systems
                     Results = _results[index]
                 };
                 _jobs[index] = job;
-                _handles[index] = job.Schedule(inputDeps);
+                _handles[index] = job.Schedule(Dependency);
             }
 
             for (int i = _takenSlots.Count - 1; i > -1; i--)
@@ -388,8 +386,6 @@ namespace NavJob.Systems
                     _takenSlots.RemoveAt(i);
                 }
             }
-
-            return inputDeps;
         }
 
         protected override void OnCreate()

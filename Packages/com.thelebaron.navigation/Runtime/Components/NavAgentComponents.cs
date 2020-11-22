@@ -40,8 +40,7 @@ namespace NavJob.Components
             float moveSpeed = 4f,
             float acceleration = 1f,
             float rotationSpeed = 10f,
-            int areaMask = -1
-        )
+            int areaMask = -1)
         {
             this.stoppingDistance = stoppingDistance;
             this.moveSpeed = moveSpeed;
@@ -62,5 +61,21 @@ namespace NavJob.Components
         }
     }
 
-    public class NavAgentComponent : ComponentDataProxy<NavAgent> { }
+    [System.Serializable]
+    public struct NavAgentAvoidance : IComponentData
+    {
+        public float  radius;
+        public float3 partition;
+
+        public NavAgentAvoidance (float radius = 1f)
+        {
+            this.radius    = radius;
+            this.partition = new float3 (0);
+        }
+    }
+    
+    public struct SyncPositionFromNavAgent : IComponentData { }
+    public struct SyncPositionToNavAgent : IComponentData { }
+    public struct SyncRotationFromNavAgent : IComponentData { }
+    public struct SyncRotationToNavAgent : IComponentData { }
 }

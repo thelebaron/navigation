@@ -1,6 +1,6 @@
 {
   "name": "com.thelebaron.navigation",
-  "displayName": "DOTS Navigation",
+  "displayName": "navigation",
   "description": "Experimental DOTS Navigation. Based on https://github.com/zulfajuniadi/unity-ecs-navmesh",
   "version": "0.1.0",
   "unity": "2020.2",
@@ -12,7 +12,8 @@
     "com.unity.entities": "0.16.0-preview.21",
     "com.unity.rendering.hybrid": "0.10.0-preview.21",
     "com.unity.mathematics": "1.2.1",
-    "com.unity.burst": "1.3.7"
+    "com.unity.burst": "1.3.7",
+    "com.thelebaron.mathematics": "0.0.1"
   },
   "type": "sample",
   "samples": [
