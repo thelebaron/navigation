@@ -9,7 +9,7 @@ namespace Demo.Behaviours
     public class PopulationSpawner : MonoBehaviour
     {
 
-        public RenderMeshProxy[] Renderers;
+        public RenderMesh[] Renderers;
 
         public int InitialSpawn = 10000;
         public float AgentStoppingDistance = 0.1f;
@@ -26,7 +26,7 @@ namespace Demo.Behaviours
 
         private void Start()
         {
-            Renderers = FindObjectsOfType<RenderMeshProxy>();
+            //Renderers = FindObjectsOfType<RenderMeshProxy>();
             entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             thisEntity = GetComponent<GameObjectEntity>().Entity;
             entityManager.AddComponent(thisEntity, typeof(PendingSpawn));

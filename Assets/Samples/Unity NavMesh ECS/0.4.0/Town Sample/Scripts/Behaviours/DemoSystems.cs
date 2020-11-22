@@ -12,6 +12,7 @@ using Demo.Behaviours;
 using NavJob.Components;
 using NavJob.Systems;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Rendering;
 
 #endregion
 
@@ -137,7 +138,9 @@ namespace Demo
                 // optional for avoidance
                 // var navAvoidance = new NavAgentAvoidance(2f);
                 // manager.SetComponentData(entity, navAvoidance);
-                manager.AddSharedComponentData(entity, GetSpawner().Renderers[UnityEngine.Random.Range(0, GetSpawner().Renderers.Length)].Value);
+                manager.AddSharedComponentData(entity, GetSpawner().Renderers[UnityEngine.Random.Range(0, GetSpawner().Renderers.Length)]);
+                manager.AddComponent<RenderBounds>(entity);
+                manager.AddComponent<WorldRenderBounds>(entity);
             }
 
             entities.Dispose();

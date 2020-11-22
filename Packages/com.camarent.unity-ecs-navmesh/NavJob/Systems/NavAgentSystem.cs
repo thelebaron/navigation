@@ -21,7 +21,7 @@ namespace NavJob.Systems
     class PathErrorBarrier : EntityCommandBufferSystem { }
 
     //[DisableAutoCreation]
-    public class NavAgentSystem : JobComponentSystem
+    public class NavAgentSystem : SystemBase
     {
 
         private struct AgentData
@@ -156,36 +156,34 @@ namespace NavJob.Systems
         private PathSuccessBarrier _pathSuccessBarrier;
         private PathErrorBarrier _pathErrorBarrier;
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
             var entityCnt = _agentQuery.CalculateEntityCount();
             var entities = _agentQuery.ToEntityArray(Allocator.TempJob);
 
             var dt = Time.DeltaTime;
-            inputDeps = new DetectNextWaypointJob
+            Dependency = new DetectNextWaypointJob
             {
                 Entities = entities,
                 Agents = GetComponentDataFromEntity<NavAgent>(),
                 NeedsWaypoint = _needsWaypoint.AsParallelWriter(),
                 navMeshQuerySystemVersion = _querySystem.Version
-            }.Schedule(entityCnt, 64, inputDeps);
+            }.Schedule(entityCnt, 64, Dependency);
 
-            inputDeps = new SetNextWaypointJob
+            Dependency = new SetNextWaypointJob
             {
                 Agents = GetComponentDataFromEntity<NavAgent>(),
                 NeedsWaypoint = _needsWaypoint
-            }.Schedule(inputDeps);
+            }.Schedule(Dependency);
 
-            inputDeps = new MovementJob
+            Dependency = new MovementJob
             {
                 DeltaTime = dt,
                 Up = Vector3.up,
                 One = Vector3.one,
                 Entities = entities,
                 Agents = GetComponentDataFromEntity<NavAgent>()
-            }.Schedule(entityCnt, 64, inputDeps);
-
-            return inputDeps;
+            }.Schedule(entityCnt, 64, Dependency);
         }
 
         /// <summary>
