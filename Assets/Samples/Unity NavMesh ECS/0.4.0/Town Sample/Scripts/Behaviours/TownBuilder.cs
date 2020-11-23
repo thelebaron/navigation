@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using NavJob.Systems;
 using Town;
+using Unity.Entities;
 
 namespace Demo.Behaviours
 {
@@ -92,7 +93,7 @@ namespace Demo.Behaviours
 
             GetComponent<BuildNavMesh>().Build((AsyncOperation operation) =>
             {
-                NavMeshQuerySystem.PurgeCacheStatic();
+                World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<NavMeshQuerySystem>().PurgeCache();
                 Debug.Log("Town built. Cache purged.");
             });
 

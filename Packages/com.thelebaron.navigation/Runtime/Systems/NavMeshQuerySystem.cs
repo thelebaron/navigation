@@ -73,18 +73,7 @@ namespace NavJob.Systems
         private PathQueryData[] _queryDatas;
         private NavMeshQuery[] _queries;
         private Dictionary<int, UpdateQueryStatusJob> _jobs;
-        private static NavMeshQuerySystem _instance;
-        private static NavMeshQuerySystem Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<NavMeshQuerySystem>();
-                }
-                return _instance;
-            }
-        }
+        
         public delegate void SuccessQueryDelegate(int id, FixedList4096<float3> corners);
         public delegate void FailedQueryDelegate(int id, PathfindingFailedReason reason);
         private SuccessQueryDelegate _pathResolvedCallbacks;
@@ -107,7 +96,47 @@ namespace NavJob.Systems
             public float3 to;
             public int areaMask;
         }
+        
+        protected override void OnCreate()
+        {
+            navAgentSystem  = World.GetOrCreateSystem<NavAgentSystem>();
+            navMeshWorld    = NavMeshWorld.GetDefaultWorld();
+            _locationQuery  = new NavMeshQuery(navMeshWorld, Allocator.Persistent);
+            _availableSlots = new ConcurrentQueue<int>();
+            _progressQueue  = new NativeList<PathQueryData>(MaxQueries, Allocator.Persistent);
+            _handles        = new List<JobHandle>(MaxQueries);
+            _takenSlots     = new List<int>(MaxQueries);
+            _statuses       = new List<NativeArray<int>>(MaxQueries);
+            _results        = new List<NativeArray<NavMeshLocation>>(MaxQueries);
+            _jobs           = new Dictionary<int, UpdateQueryStatusJob>(MaxQueries);
+            _queries        = new NavMeshQuery[MaxQueries];
+            _queryDatas     = new PathQueryData[MaxQueries];
+            for (int i = 0; i < MaxQueries; i++)
+            {
+                _handles.Add(new JobHandle());
+                _statuses.Add(new NativeArray<int>(3, Allocator.Persistent));
+                _results.Add(new NativeArray<NavMeshLocation>(MaxPathSize, Allocator.Persistent));
+                _availableSlots.Enqueue(i);
+            }
+            _queryQueue = new ConcurrentQueue<PathQueryData>();
+        }
 
+        protected override void OnDestroy()
+        {
+            _progressQueue.Dispose();
+            _locationQuery.Dispose();
+            //cachedPaths.Dispose();
+            for (int i = 0; i < _takenSlots.Count; i++)
+            {
+                _queries[_takenSlots[i]].Dispose();
+            }
+            for (int i = 0; i < MaxQueries; i++)
+            {
+                _statuses[i].Dispose();
+                _results[i].Dispose();
+            }
+        }
+        
         /// <summary>
         /// Register a callback that is called upon successful request
         /// </summary>
@@ -169,43 +198,6 @@ namespace NavJob.Systems
             _cachedPaths.Clear();
         }
 
-        /// <summary>
-        /// Static counterpart of RegisterPathResolvedCallback.
-        /// </summary>
-        /// <param name="callback"></param>
-        public static void RegisterPathResolvedCallbackStatic(SuccessQueryDelegate callback)
-        {
-            Instance._pathResolvedCallbacks += callback;
-        }
-
-        /// <summary>
-        /// Static counterpart of RegisterPathFailedCallback
-        /// </summary>
-        /// <param name="callback"></param>
-        public static void RegisterPathFailedCallbackStatic(FailedQueryDelegate callback)
-        {
-            Instance._pathFailedCallbacks += callback;
-        }
-
-        /// <summary>
-        /// Static counterpart of RequestPath
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="from"></param>
-        /// <param name="to"></param>
-        /// <param name="areaMask"></param>
-        public static void RequestPathStatic(int id, Vector3 from, Vector3 to, int areaMask = -1)
-        {
-            Instance.RequestPath(id, from, to, areaMask);
-        }
-
-        /// <summary>
-        /// Static counterpart of PurgeCache
-        /// </summary>
-        public static void PurgeCacheStatic()
-        {
-            Instance.PurgeCache();
-        }
 
         private struct UpdateQueryStatusJob : IJob
         {
@@ -396,45 +388,7 @@ namespace NavJob.Systems
             }
         }
 
-        protected override void OnCreate()
-        {
-            navAgentSystem  = World.GetOrCreateSystem<NavAgentSystem>();
-            navMeshWorld    = NavMeshWorld.GetDefaultWorld();
-            _locationQuery  = new NavMeshQuery(navMeshWorld, Allocator.Persistent);
-            _availableSlots = new ConcurrentQueue<int>();
-            _progressQueue  = new NativeList<PathQueryData>(MaxQueries, Allocator.Persistent);
-            _handles        = new List<JobHandle>(MaxQueries);
-            _takenSlots     = new List<int>(MaxQueries);
-            _statuses       = new List<NativeArray<int>>(MaxQueries);
-            _results        = new List<NativeArray<NavMeshLocation>>(MaxQueries);
-            _jobs           = new Dictionary<int, UpdateQueryStatusJob>(MaxQueries);
-            _queries        = new NavMeshQuery[MaxQueries];
-            _queryDatas     = new PathQueryData[MaxQueries];
-            for (int i = 0; i < MaxQueries; i++)
-            {
-                _handles.Add(new JobHandle());
-                _statuses.Add(new NativeArray<int>(3, Allocator.Persistent));
-                _results.Add(new NativeArray<NavMeshLocation>(MaxPathSize, Allocator.Persistent));
-                _availableSlots.Enqueue(i);
-            }
-            _queryQueue = new ConcurrentQueue<PathQueryData>();
-        }
-
-        protected override void OnDestroy()
-        {
-            _progressQueue.Dispose();
-            _locationQuery.Dispose();
-            //cachedPaths.Dispose();
-            for (int i = 0; i < _takenSlots.Count; i++)
-            {
-                _queries[_takenSlots[i]].Dispose();
-            }
-            for (int i = 0; i < MaxQueries; i++)
-            {
-                _statuses[i].Dispose();
-                _results[i].Dispose();
-            }
-        }
+ 
 
         private int GetKey(int fromX, int fromZ, int toX, int toZ)
         {
