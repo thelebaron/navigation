@@ -83,7 +83,7 @@ namespace NavJob.Systems
                     {
                         var agent = item.agent;
                         agent.currentWaypoint = currentWaypoints[agent.nextWaypointIndex];
-                        agent.remainingDistance = Vector3.Distance(agent.position, agent.currentWaypoint);
+                        agent.remainingDistance = math.distance(agent.position, agent.currentWaypoint);
                         agent.nextWaypointIndex++;
                         Agents[entity] = agent;
                     }
@@ -113,25 +113,30 @@ namespace NavJob.Systems
 
                 if (agent.remainingDistance > 0)
                 {
-                    agent.currentMoveSpeed = Mathf.Lerp(agent.currentMoveSpeed, agent.moveSpeed, DeltaTime * agent.acceleration);
+                    agent.currentMoveSpeed = math.lerp(agent.currentMoveSpeed, agent.moveSpeed, DeltaTime * agent.acceleration);
                     // todo: deceleration
-                    if (agent.nextPosition.x != Mathf.Infinity)
+                    if (agent.nextPosition.x != math.INFINITY)
                     {
                         agent.position = agent.nextPosition;
                     }
-                    var heading = (Vector3)(agent.currentWaypoint - agent.position);
-                    agent.remainingDistance = heading.magnitude;
+                    var heading = (agent.currentWaypoint - agent.position);
+                    agent.remainingDistance = math.length(heading);
                     if (agent.remainingDistance > 0.001f)
                     {
-                        var targetRotation = Quaternion.LookRotation(heading, maths.up).eulerAngles;
+                        //var targetRotation                  = Quaternion.LookRotation(heading, maths.up).eulerAngles;
+                        var targetRotation                  = maths.eulerXYZ(quaternion.LookRotationSafe(heading, maths.up));
                         targetRotation.x = targetRotation.z = 0;
                         if (agent.remainingDistance < 1)
                         {
-                            agent.rotation = Quaternion.Euler(targetRotation);
+                            agent.rotation = quaternion.Euler(targetRotation, math.RotationOrder.XYZ);
                         }
                         else
                         {
-                            agent.rotation = Quaternion.Slerp(agent.rotation, Quaternion.Euler(targetRotation), DeltaTime * agent.rotationSpeed);
+                            var rot = quaternion.Euler(targetRotation, math.RotationOrder.XYZ);
+                            //rot = maths.nanSafeQuaternion(rot);
+                            //rot = math.normalizesafe(rot);
+                            //agent.rotation = math.slerp(agent.rotation, rot, DeltaTime * agent.rotationSpeed); //math.slerp fails: Quaternion To Matrix conversion failed because input Quaternion is invalid
+                            agent.rotation = Quaternion.Slerp(agent.rotation, rot, DeltaTime * agent.rotationSpeed);
                         }
                     }
                     var forward = math.forward(agent.rotation) * agent.currentMoveSpeed * DeltaTime;
@@ -140,9 +145,9 @@ namespace NavJob.Systems
                 }
                 else if (agent.nextWaypointIndex == agent.totalWaypoints)
                 {
-                    agent.nextPosition = new float3 { x = Mathf.Infinity, y = Mathf.Infinity, z = Mathf.Infinity };
-                    agent.status = AgentStatus.Idle;
-                    Agents[entity] = agent;
+                    agent.nextPosition = new float3 { x = math.INFINITY, y = math.INFINITY, z = math.INFINITY };
+                    agent.status       = AgentStatus.Idle;
+                    Agents[entity]     = agent;
                 }
             }
         }
@@ -188,7 +193,7 @@ namespace NavJob.Systems
         /// <param name="agent"></param>
         /// <param name="destination"></param>
         /// <param name="areas"></param>
-        public void SetDestination(Entity entity, NavAgent agent, Vector3 destination, int areas = -1)
+        public void SetDestination(Entity entity, NavAgent agent, float3 destination, int areas = -1)
         {
             if (_pathFindingData.TryAdd(entity.Index, new AgentData { index = entity.Index, entity = entity, agent = agent }))
             {
@@ -207,7 +212,7 @@ namespace NavJob.Systems
         /// <param name="entity"></param>
         /// <param name="agent"></param>
         /// <param name="destination"></param>
-        public static void SetDestinationStatic(Entity entity, NavAgent agent, Vector3 destination, int areas = -1)
+        public static void SetDestinationStatic(Entity entity, NavAgent agent, float3 destination, int areas = -1)
         {
             Instance.SetDestination(entity, agent, destination, areas);
         }

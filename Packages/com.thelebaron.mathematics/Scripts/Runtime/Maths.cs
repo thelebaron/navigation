@@ -303,6 +303,7 @@ namespace thelebaron.mathematics
         }
 
         [BurstCompile]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static quaternion nanSafeQuaternion(quaternion quaternion, quaternion prevQuaternion = default(quaternion))
         {
             quaternion.value.x = double.IsNaN(quaternion.value.x) ? prevQuaternion.value.x : quaternion.value.x;
