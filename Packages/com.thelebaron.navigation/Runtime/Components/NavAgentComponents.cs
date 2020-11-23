@@ -78,4 +78,10 @@ namespace NavJob.Components
     public struct SyncPositionToNavAgent : IComponentData { }
     public struct SyncRotationFromNavAgent : IComponentData { }
     public struct SyncRotationToNavAgent : IComponentData { }
+    
+    public struct DisableNavigationWriteTag: IComponentData { }
+    public struct DisableNavigationReadTag: IComponentData { }
+    public struct DisableNavigation: IComponentData { }
+    
+    //DisableRootTransformReadWriteTag
 }

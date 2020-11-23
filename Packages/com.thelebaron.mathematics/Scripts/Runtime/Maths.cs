@@ -13,6 +13,8 @@ using UnityEngine.Assertions;
 
 namespace thelebaron.mathematics
 {
+
+    
     public static class maths
     {
         private static readonly float3 zeroVector    = new float3(0.0f, 0.0f, 0.0f);
@@ -569,6 +571,7 @@ namespace thelebaron.mathematics
 
         // is this already here?
         //todo change to float2
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 NaNSafeVector2(Vector2 vector, Vector2 prevVector = default(Vector2))
         {
             vector.x = double.IsNaN(vector.x) ? prevVector.x : vector.x;
@@ -579,6 +582,7 @@ namespace thelebaron.mathematics
 
         #region Transform
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 RotateAroundPoint(float3 position, float3 pivot, float3 axis, float delta)
         {
             return math.mul(quaternion.AxisAngle(axis, delta), position - pivot) + pivot;
@@ -593,6 +597,7 @@ namespace thelebaron.mathematics
         /// </summary>
         /// <param name="rand"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 insideSphere(this ref Unity.Mathematics.Random rand)
         {
             var phi   = rand.NextFloat(2 * math.PI);
@@ -604,6 +609,7 @@ namespace thelebaron.mathematics
             return r * new float3(x, y, z);
         }
  
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 onSphereSurfase(this ref Unity.Mathematics.Random rand)
         {
             var phi   = rand.NextFloat(2 * math.PI);
@@ -616,6 +622,44 @@ namespace thelebaron.mathematics
 
         
         #endregion
+        
+        public static class geometry
+        {
+            // Calculate the closest point of approach for line-segment vs line-segment.
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static bool SegmentSegmentCPA(out float3 c0, out float3 c1, float3 p0, float3 p1, float3 q0, float3 q1)
+            {
+                var u  = p1 - p0;
+                var v  = q1 - q0;
+                var w0 = p0 - q0;
 
+                float a = math.dot(u, u);
+                float b = math.dot(u, v);
+                float c = math.dot(v, v);
+                float d = math.dot(u, w0);
+                float e = math.dot(v, w0);
+
+                float den = (a * c - b * b);
+                float sc, tc;
+
+                if (den == 0)
+                {
+                    sc = 0;
+                    tc = d / b;
+
+                    // todo: handle b = 0 (=> a and/or c is 0)
+                }
+                else
+                {
+                    sc = (b * e - c * d) / (a * c - b * b);
+                    tc = (a * e - b * d) / (a * c - b * b);
+                }
+
+                c0 = math.lerp(p0, p1, sc);
+                c1 = math.lerp(q0, q1, tc);
+
+                return den != 0;
+            }
+        }
     }
 }

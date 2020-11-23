@@ -113,6 +113,7 @@ namespace NavJob.Systems
             _jobs           = new Dictionary<int, UpdateQueryStatusJob>(MaxQueries);
             _queries        = new NavMeshQuery[MaxQueries];
             _queryDatas     = new PathQueryData[MaxQueries];
+            
             for (int i = 0; i < MaxQueries; i++)
             {
                 _handles.Add(new JobHandle());
@@ -452,12 +453,11 @@ namespace NavJob.Systems
                 var type2 = query.GetPolygonType(path[k + 1]);
                 if (type1 != type2)
                 {
-                    float3 l, r;
                     var    status = query.GetPortalPoints(path[k], path[k + 1], out var lv, out var rv);
-                    l = lv;
-                    r = rv;
-                    float3 cpa1, cpa2;
-                    GeometryUtils.SegmentSegmentCPA(out cpa1, out cpa2, l, r, straightPath[n - 1].position, termPos);
+                    float3 l      = lv;
+                    float3 r      = rv;
+                    //float3 cpa1, cpa2;
+                    maths.geometry.SegmentSegmentCPA(out var cpa1, out var cpa2, l, r, straightPath[n - 1].position, termPos);
                     straightPath[n] = query.CreateLocation(cpa1, path[k + 1]);
 
                     straightPathFlags[n] = (type2 == NavMeshPolyTypes.OffMeshConnection) ? StraightPathFlags.OffMeshConnection : 0;
@@ -621,42 +621,5 @@ namespace NavJob.Systems
         }
     }
 
-    public class GeometryUtils
-    {
-        // Calculate the closest point of approach for line-segment vs line-segment.
-        [BurstCompile]
-        public static bool SegmentSegmentCPA(out float3 c0, out float3 c1, float3 p0, float3 p1, float3 q0, float3 q1)
-        {
-            var u = p1 - p0;
-            var v = q1 - q0;
-            var w0 = p0 - q0;
 
-            float a = math.dot(u, u);
-            float b = math.dot(u, v);
-            float c = math.dot(v, v);
-            float d = math.dot(u, w0);
-            float e = math.dot(v, w0);
-
-            float den = (a * c - b * b);
-            float sc, tc;
-
-            if (den == 0)
-            {
-                sc = 0;
-                tc = d / b;
-
-                // todo: handle b = 0 (=> a and/or c is 0)
-            }
-            else
-            {
-                sc = (b * e - c * d) / (a * c - b * b);
-                tc = (a * e - b * d) / (a * c - b * b);
-            }
-
-            c0 = math.lerp(p0, p1, sc);
-            c1 = math.lerp(q0, q1, tc);
-
-            return den != 0;
-        }
-    }
 }
