@@ -27,6 +27,7 @@ namespace thelebaron.mathematics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 Up(quaternion q) { return math.mul(q, new float3(0, 1, 0)); }  // for compatibility
 
+        [Obsolete]
         public static float3 zero    => zeroVector;
         public static float3 one     => oneVector;
         public static float3 up      => upVector;
@@ -421,6 +422,7 @@ namespace thelebaron.mathematics
             return math.radians(eulerXYZ(q1));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static float3 normalizeAngles(float3 angles)
         {
             angles.x = normalizeAngle(angles.x);
@@ -429,6 +431,7 @@ namespace thelebaron.mathematics
             return angles;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static float normalizeAngle(float angle)
         {
             while (angle > 360)

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using thelebaron.mathematics;
+using Unity.Burst;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
 using Unity.Collections;
@@ -162,7 +164,7 @@ namespace NavJob.Systems
         /// <param name="from"></param>
         /// <param name="to"></param>
         /// <param name="areaMask"></param>
-        public void RequestPath(int id, Vector3 from, Vector3 to, int areaMask = -1)
+        public void RequestPath(int id, float3 from, float3 to, int areaMask = -1)
         {
             var key = GetKey((int)from.x, (int)from.z, (int)to.x, (int)to.z);
             if (UseCache)
@@ -294,8 +296,8 @@ namespace NavJob.Systems
                     else if (_availableSlots.TryDequeue(out int index))
                     {
                         var query = new NavMeshQuery(navMeshWorld, Allocator.Persistent, MaxPathSize);
-                        var from = query.MapLocation(pending.from, Vector3.one * 10, 0);
-                        var to = query.MapLocation(pending.to, Vector3.one * 10, 0);
+                        var from  = query.MapLocation(pending.from, maths.one * 10, 0);
+                        var to    = query.MapLocation(pending.to, maths.one * 10, 0);
                         if (!query.IsValid(from) || !query.IsValid(to))
                         {
                             query.Dispose();
@@ -428,12 +430,13 @@ namespace NavJob.Systems
 
     public class PathUtils
     {
-        public static float Perp2D(Vector3 u, Vector3 v)
+        [BurstCompile]
+        public static float Perp2D(float3 u, float3 v)
         {
             return u.z * v.x - u.x * v.z;
         }
 
-        public static void Swap(ref Vector3 a, ref Vector3 b)
+        public static void Swap(ref float3 a, ref float3 b)
         {
             var temp = a;
             a = b;
@@ -441,7 +444,7 @@ namespace NavJob.Systems
         }
 
         // Retrace portals between corners and register if type of polygon changes
-        public static int RetracePortals(NavMeshQuery query, int startIndex, int endIndex, NativeSlice<PolygonId> path, int n, Vector3 termPos, ref NativeArray<NavMeshLocation> straightPath, ref NativeArray<StraightPathFlags> straightPathFlags, int maxStraightPath)
+        public static int RetracePortals(NavMeshQuery query, int startIndex, int endIndex, NativeSlice<PolygonId> path, int n, float3 termPos, ref NativeArray<NavMeshLocation> straightPath, ref NativeArray<StraightPathFlags> straightPathFlags, int maxStraightPath)
         {
             for (var k = startIndex; k < endIndex - 1; ++k)
             {
@@ -449,8 +452,10 @@ namespace NavJob.Systems
                 var type2 = query.GetPolygonType(path[k + 1]);
                 if (type1 != type2)
                 {
-                    Vector3 l, r;
-                    var status = query.GetPortalPoints(path[k], path[k + 1], out l, out r);
+                    float3 l, r;
+                    var    status = query.GetPortalPoints(path[k], path[k + 1], out var lv, out var rv);
+                    l = lv;
+                    r = rv;
                     float3 cpa1, cpa2;
                     GeometryUtils.SegmentSegmentCPA(out cpa1, out cpa2, l, r, straightPath[n - 1].position, termPos);
                     straightPath[n] = query.CreateLocation(cpa1, path[k + 1]);
@@ -467,7 +472,7 @@ namespace NavJob.Systems
             return ++n;
         }
 
-        public static PathQueryStatus FindStraightPath(NavMeshQuery query, Vector3 startPos, Vector3 endPos, NativeSlice<PolygonId> path, int pathSize, ref NativeArray<NavMeshLocation> straightPath, ref NativeArray<StraightPathFlags> straightPathFlags, ref NativeArray<float> vertexSide, ref int straightPathCount, int maxStraightPath)
+        public static PathQueryStatus FindStraightPath(NavMeshQuery query, float3 startPos, float3 endPos, NativeSlice<PolygonId> path, int pathSize, ref NativeArray<NavMeshLocation> straightPath, ref NativeArray<StraightPathFlags> straightPathFlags, ref NativeArray<float> vertexSide, ref int straightPathCount, int maxStraightPath)
         {
             if (!query.IsValid(path[0]))
             {
@@ -486,42 +491,45 @@ namespace NavJob.Systems
             {
                 var startPolyWorldToLocal = query.PolygonWorldToLocalMatrix(path[0]);
 
-                var apex = startPolyWorldToLocal.MultiplyPoint(startPos);
-                var left = new Vector3(0, 0, 0); // Vector3.zero accesses a static readonly which does not work in burst yet
-                var right = new Vector3(0, 0, 0);
-                var leftIndex = -1;
-                var rightIndex = -1;
+                float3 apex       = startPolyWorldToLocal.MultiplyPoint(startPos);
+                var    left       = float3.zero;
+                var    right      = float3.zero;
+                var    leftIndex  = -1;
+                var    rightIndex = -1;
 
+                //Debug.Log(right + " " + left);
                 for (var i = 1; i <= pathSize; ++i)
                 {
                     var polyWorldToLocal = query.PolygonWorldToLocalMatrix(path[apexIndex]);
 
-                    Vector3 vl, vr;
+                    float3 fl, fr;
                     if (i == pathSize)
                     {
-                        vl = vr = polyWorldToLocal.MultiplyPoint(endPos);
+                        fl = fr = polyWorldToLocal.MultiplyPoint(endPos);
                     }
                     else
                     {
-                        var success = query.GetPortalPoints(path[i - 1], path[i], out vl, out vr);
+                        var success = query.GetPortalPoints(path[i - 1], path[i], out var vl, out var vr);
+                        fl = vl;
+                        fr = vr;
                         if (!success)
                         {
                             return PathQueryStatus.Failure; // | PathQueryStatus.InvalidParam;
                         }
 
-                        vl = polyWorldToLocal.MultiplyPoint(vl);
-                        vr = polyWorldToLocal.MultiplyPoint(vr);
+                        fl = polyWorldToLocal.MultiplyPoint(fl);
+                        fr = polyWorldToLocal.MultiplyPoint(fr);
                     }
 
-                    vl = vl - apex;
-                    vr = vr - apex;
+                    fl = fl - apex;
+                    fr = fr - apex;
 
                     // Ensure left/right ordering
-                    if (Perp2D(vl, vr) < 0)
-                        Swap(ref vl, ref vr);
+                    if (Perp2D(fl, fr) < 0)
+                        Swap(ref fl, ref fr);
 
                     // Terminate funnel by turning
-                    if (Perp2D(left, vr) < 0)
+                    if (Perp2D(left, fr) < 0)
                     {
                         var polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
                         var termPos = polyLocalToWorld.MultiplyPoint(apex + left);
@@ -540,13 +548,15 @@ namespace NavJob.Systems
                             return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
                         }
 
-                        apex = polyWorldToLocal.MultiplyPoint(termPos);
-                        left.Set(0, 0, 0);
-                        right.Set(0, 0, 0);
-                        i = apexIndex = leftIndex;
+                        apex  = polyWorldToLocal.MultiplyPoint(termPos);
+                        left  = float3.zero;
+                        right = float3.zero;
+                        i     = apexIndex = leftIndex;
                         continue;
                     }
-                    if (Perp2D(right, vl) > 0)
+
+                    //Debug.Log(right + " " + left);
+                    if (Perp2D(right, fl) > 0)
                     {
                         var polyLocalToWorld = query.PolygonLocalToWorldMatrix(path[apexIndex]);
                         var termPos = polyLocalToWorld.MultiplyPoint(apex + right);
@@ -565,22 +575,22 @@ namespace NavJob.Systems
                             return PathQueryStatus.Success; // | PathQueryStatus.BufferTooSmall;
                         }
 
-                        apex = polyWorldToLocal.MultiplyPoint(termPos);
-                        left.Set(0, 0, 0);
-                        right.Set(0, 0, 0);
-                        i = apexIndex = rightIndex;
+                        apex  = polyWorldToLocal.MultiplyPoint(termPos);
+                        left  = float3.zero;
+                        right = float3.zero;
+                        i     = apexIndex = rightIndex;
                         continue;
                     }
 
                     // Narrow funnel
-                    if (Perp2D(left, vl) >= 0)
+                    if (Perp2D(left, fl) >= 0)
                     {
-                        left = vl;
+                        left = fl;
                         leftIndex = i;
                     }
-                    if (Perp2D(right, vr) <= 0)
+                    if (Perp2D(right, fr) <= 0)
                     {
-                        right = vr;
+                        right = fr;
                         rightIndex = i;
                     }
                 }
@@ -588,7 +598,7 @@ namespace NavJob.Systems
 
             // Remove the the next to last if duplicate point - e.g. start and end positions are the same
             // (in which case we have get a single point)
-            if (n > 0 && (straightPath[n - 1].position == endPos))
+            if (n > 0 && (straightPath[n - 1].position.Equals(endPos)))
                 n--;
 
             n = RetracePortals(query, apexIndex, pathSize - 1, path, n, endPos, ref straightPath, ref straightPathFlags, maxStraightPath);
@@ -614,6 +624,7 @@ namespace NavJob.Systems
     public class GeometryUtils
     {
         // Calculate the closest point of approach for line-segment vs line-segment.
+        [BurstCompile]
         public static bool SegmentSegmentCPA(out float3 c0, out float3 c1, float3 p0, float3 p1, float3 q0, float3 q1)
         {
             var u = p1 - p0;

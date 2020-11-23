@@ -27,7 +27,7 @@ namespace NavJob.Components
         public AgentStatus status;
         public float3      position;
         public float3      nextPosition;
-        public Quaternion  rotation;
+        public quaternion  rotation;
         public float       remainingDistance;
         public float3      currentWaypoint;
         public int         nextWaypointIndex;
@@ -35,7 +35,7 @@ namespace NavJob.Components
 
         public NavAgent (
             float3 position,
-            Quaternion rotation,
+            quaternion rotation,
             float stoppingDistance = 1f,
             float moveSpeed = 4f,
             float acceleration = 1f,
@@ -47,7 +47,7 @@ namespace NavJob.Components
             this.acceleration = acceleration;
             this.rotationSpeed = rotationSpeed;
             this.areaMask = areaMask;
-            destination = Vector3.zero;
+            destination = float3.zero;
             currentMoveSpeed = 0;
             queryVersion = 0;
             status = AgentStatus.Idle;

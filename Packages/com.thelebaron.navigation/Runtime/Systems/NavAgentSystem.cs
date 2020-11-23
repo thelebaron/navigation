@@ -10,6 +10,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using NavJob.Components;
+using thelebaron.mathematics;
 
 #endregion
 
@@ -94,9 +95,6 @@ namespace NavJob.Systems
         private struct MovementJob : IJobParallelFor
         {
             public float DeltaTime;
-            public float3 Up;
-            public float3 One;
-
             [ReadOnly]
             [DeallocateOnJobCompletion]
             public NativeArray<Entity> Entities;
@@ -125,7 +123,7 @@ namespace NavJob.Systems
                     agent.remainingDistance = heading.magnitude;
                     if (agent.remainingDistance > 0.001f)
                     {
-                        var targetRotation = Quaternion.LookRotation(heading, Up).eulerAngles;
+                        var targetRotation = Quaternion.LookRotation(heading, maths.up).eulerAngles;
                         targetRotation.x = targetRotation.z = 0;
                         if (agent.remainingDistance < 1)
                         {
@@ -178,8 +176,6 @@ namespace NavJob.Systems
             Dependency = new MovementJob
             {
                 DeltaTime = dt,
-                Up = Vector3.up,
-                One = Vector3.one,
                 Entities = entities,
                 Agents = GetComponentDataFromEntity<NavAgent>()
             }.Schedule(entityCnt, 64, Dependency);
