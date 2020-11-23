@@ -30,9 +30,9 @@ namespace NavJob.Systems
             public NavAgent agent;
         }
 
-        private NativeQueue<AgentData> _needsWaypoint;
-        private readonly ConcurrentDictionary<int, Vector3[]> _waypoints = new ConcurrentDictionary<int, Vector3[]>();
-        private NativeHashMap<int, AgentData> _pathFindingData;
+        private          NativeQueue<AgentData>                           _needsWaypoint;
+        private readonly ConcurrentDictionary<int, FixedList4096<float3>> _waypoints = new ConcurrentDictionary<int, FixedList4096<float3>>();
+        private          NativeHashMap<int, AgentData>                    _pathFindingData;
 
         [BurstCompile]
         private struct DetectNextWaypointJob : IJobParallelFor
@@ -78,7 +78,7 @@ namespace NavJob.Systems
                 while (NeedsWaypoint.TryDequeue(out AgentData item))
                 {
                     var entity = item.entity;
-                    if (NavAgentSystem.Instance._waypoints.TryGetValue(entity.Index, out Vector3[] currentWaypoints))
+                    if (NavAgentSystem.Instance._waypoints.TryGetValue(entity.Index, out FixedList4096<float3> currentWaypoints))
                     {
                         var agent = item.agent;
                         agent.currentWaypoint = currentWaypoints[agent.nextWaypointIndex];
@@ -246,7 +246,7 @@ namespace NavJob.Systems
             _pathFindingData.Dispose();
         }
 
-        private void SetWaypoint(Entity entity, NavAgent agent, Vector3[] newWaypoints)
+        private void SetWaypoint(Entity entity, NavAgent agent, FixedList4096<float3> newWaypoints)
         {
             _waypoints[entity.Index] = newWaypoints;
             var command = _pathSuccessBarrier.CreateCommandBuffer();
@@ -259,7 +259,7 @@ namespace NavJob.Systems
         }
 
         // make public for refactoring
-        public void OnPathSuccess(int index, Vector3[] waypoints)
+        public void OnPathSuccess(int index, FixedList4096<float3> waypoints)
         {
             if (_pathFindingData.TryGetValue(index, out AgentData entry))
             {

@@ -85,7 +85,7 @@ namespace NavJob.Systems
                 return _instance;
             }
         }
-        public delegate void SuccessQueryDelegate(int id, Vector3[] corners);
+        public delegate void SuccessQueryDelegate(int id, FixedList4096<float3> corners);
         public delegate void FailedQueryDelegate(int id, PathfindingFailedReason reason);
         private SuccessQueryDelegate _pathResolvedCallbacks;
         private FailedQueryDelegate _pathFailedCallbacks;
@@ -96,8 +96,8 @@ namespace NavJob.Systems
 
         //private          NativeMultiHashMap<int, float3>      cachedPaths   = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
 
-        private NavAgentSystem navAgentSystem;
-        private readonly ConcurrentDictionary<int, Vector3[]> _cachedPaths = new ConcurrentDictionary<int, Vector3[]>();
+        private          NavAgentSystem                                   navAgentSystem;
+        private readonly ConcurrentDictionary<int, FixedList4096<float3>> _cachedPaths = new ConcurrentDictionary<int, FixedList4096<float3>>();
 
         private struct PathQueryData
         {
@@ -148,7 +148,7 @@ namespace NavJob.Systems
                 }*/
 
 
-                if (_cachedPaths.TryGetValue(key, out Vector3[] waypoints))
+                if (_cachedPaths.TryGetValue(key, out FixedList4096<float3> waypoints))
                 {
                     _pathResolvedCallbacks?.Invoke(id, waypoints);
 
@@ -295,7 +295,7 @@ namespace NavJob.Systems
             {
                 if (_queryQueue.TryDequeue(out PathQueryData pending))
                 {
-                    if (UseCache && _cachedPaths.TryGetValue(pending.key, out Vector3[] waypoints))
+                    if (UseCache && _cachedPaths.TryGetValue(pending.key, out FixedList4096<float3> waypoints))
                     {
                         _pathResolvedCallbacks?.Invoke(pending.id, waypoints);
                     }
@@ -365,10 +365,10 @@ namespace NavJob.Systems
                 {
                     if (job.Statuses[1] == 1)
                     {
-                        var waypoints = new Vector3[job.Statuses[2]];
+                        var waypoints = new FixedList4096<float3>();
                         for (int k = 0; k < job.Statuses[2]; k++)
                         {
-                            waypoints[k] = job.Results[k].position;
+                            waypoints.Add(job.Results[k].position);
                         }
                         if (UseCache)
                         {
